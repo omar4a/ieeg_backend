@@ -1,0 +1,49 @@
+# --- Environments & IDEs ---
+.venv/
+venv/
+env/
+.env/
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# --- Python Bytecode & Builds ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+build/
+dist/
+develop-eggs/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+
+# --- iEEG Backend Specifics ---
+# Data & Workspaces
+workspace/
+weights/
+*.edf
+*.bdf
+*.set
+*.vhdr
+*.vmrk
+*.eeg
+
+# --- Testing & Profiling Artifacts ---
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+pytest_log.txt
+test_results.txt
+mprofile_*.dat
+*.log
