@@ -1,6 +1,6 @@
-# iEEG Backend - GSoC 2026
+# iEEG Backend - INCF GSoC 2026
 
-Welcome! This repository houses the core multiprocessing backend for the intracranial EEG (iEEG) visualization and machine learning suite. 
+Welcome! This repository houses the core backend for the iEEG management suite. 
 
 ## 📂 Project Architecture
 
@@ -55,20 +55,20 @@ ieeg_backend/
 └── main.py                     # Entry point that initializes the engine and UI bridge
 ```
 
-## 🚀 Current Implementation Status
+## Current Implementation Status
 
-At this initial phase of the GSoC timeline, we have successfully implemented and verified the foundational **Data Ingestion Engine**.
+At this initial phase, we have successfully implemented and verified the foundational **Data Ingestion Engine**.
 
-- **`src/core/data_manager.py`**: A robust OOP wrapper natively reading massive multi-GB `.edf` files using memory pointers (via `mne.io.read_raw(preload=False)`). Includes rigorous validation mapping exact neural channels (`eeg`, `seeg`, `ecog`) safely using `mne.pick_types`, preventing runtime failures from inconsistent hospital naming schemes. It leverages a Python Context Manager to lock/unlock OS file handles.
-- **`src/core/sliding_window.py`**: A pure Python Generator that ingests the `DataManager` stream and mathematically slices it into $O(1)$ memory chunks using configurable offsets. It seamlessly eliminates arbitrary end-of-file truncation branching by dynamically calculating duration limits.
-- **The Pipeline**: Together, the `DataManager` pulls metadata and passes it to the `SlidingWindowGenerator`, which precisely invokes `get_window()` to stream isolated arrays from the disk *only* when the memory loop yields.
+- **`src/core/data_manager.py`**: A robust OOP wrapper natively reading massive multi-GB iEEG files using memory pointers (via `mne.io.read_raw(preload=False)`). Includes rigorous validation mapping exact neural channels (`eeg`, `seeg`, `ecog`) safely using `mne.pick_types`, preventing runtime failures from inconsistent hospital naming schemes. It leverages a Python Context Manager to lock/unlock OS file handles.
+- **`src/core/sliding_window.py`**: A pure Python Generator that ingests the `DataManager` stream and slices it into $O(1)$ memory chunks using configurable offsets. It eliminates arbitrary end-of-file truncation branching by dynamically calculating duration limits.
+- **The Pipeline**: Together, the `DataManager` pulls metadata and passes it to the `SlidingWindowGenerator`, which invokes `get_window()` to stream isolated arrays from the disk *only* when the memory loop yields.
 
-*(Extensible: Sections detailing the ABC plugin contracts, PyTorch models, and async bridge will be populated as the registry and UI integration layers are finalized.)*
+*(Sections detailing the ABC plugin contracts, PyTorch models, and async bridge will be populated as the registry and UI integration layers are finalized.)*
 
 ## 🧪 Comprehensive Testing Results
 
-The data ingestion pipeline has been subjected to extreme edge-case validation and clinical memory profiling. 
+The data ingestion pipeline has been subjected to comprehensive testing, edge-case validation, and memory profiling. 
 
-- **Unit Tests (100% Coverage)**: The modules pass `pytest` with a seamless **100% coverage** over the core modules. The dynamic assertions rigorously lock down zero-length windows, negative overlap parameters, out-of-bounds duration requests, and fractional end-of-file truncation rounding.
-- **1.2GB Clinical Stress Test**: The pipeline executed a continuous MProf heartbeat trace over a massive, real 1.2GB clinical `.edf` file, simulating chunks scaling up to 172 simultaneous data channels.
-- **RAM Resilience**: Memory usage proved entirely resilient. The RAM consumption idled strictly at a `~147 MB` baseline. During disk-read bursts, memory spiked proportionately but immediately compressed back down to exactly `147 MB` via aggressive garbage collection (`gc.collect()`), permanently neutralizing the risk of cumulative memory overflow regardless of recording length.
+- **Unit Tests (100% Coverage)**: The modules pass `pytest` with **100% coverage** over the core modules. The dynamic assertions lock down zero-length windows, negative overlap parameters, out-of-bounds duration requests, and fractional end-of-file truncation rounding.
+- **1.2GB Clinical Stress Test**: The pipeline executed a continuous MProf heartbeat trace over a 1.2GB `.edf` file, simulating chunks scaling up to 172 simultaneous data channels.
+- **RAM Resilience**: Memory usage proved entirely resilient. The RAM consumption idled strictly at a `~147 MB` baseline. During disk-read bursts, memory spiked but immediately compressed back down to exactly `147 MB` via aggressive garbage collection (`gc.collect()`), avoiding the risk of memory overflow regardless of recording length.
