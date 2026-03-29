@@ -1,0 +1,13 @@
+============================= test session starts =============================
+platform win32 -- Python 3.14.0, pytest-9.0.2, pluggy-1.6.0 -- C:\Python314\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Omar\Work\GSoC_2026\ieeg_backend
+configfile: pyproject.toml
+plugins: anyio-4.12.1, cov-7.1.0
+collecting ... collected 3 items
+
+tests/test_contracts.py::test_contract_enforcement PASSED                [ 33%]
+tests/test_contracts.py::test_vram_leak_prevention PASSED                [ 66%]
+tests/test_contracts.py::test_gui_serialization_safety PASSED            [100%]
+
+============================== 3 passed in 3.41s ==============================
