@@ -59,19 +59,19 @@ ieeg_backend/
 
 **Data Ingestion Engine**.
 
-- **`data_manager.py`**: A robust OOP wrapper natively reading massive multi-GB iEEG files using memory pointers (via `mne.io.read_raw(preload=False)`). Includes rigorous validation mapping exact neural channels (`eeg`, `seeg`, `ecog`) safely using `mne.pick_types`, preventing runtime failures from inconsistent hospital naming schemes. It leverages a Python Context Manager to lock/unlock OS file handles.
-- **`sliding_window.py`**: A pure Python Generator that ingests the `DataManager` stream and slices it into $O(1)$ memory chunks using configurable offsets. It eliminates arbitrary end-of-file truncation branching by dynamically calculating duration limits.
+- **`data_manager.py`**: A robust OOP wrapper that reads massive iEEG files using memory pointers (via `mne.io.read_raw(preload=False)`). Includes validation mapping exact neural channels (`eeg`, `seeg`, `ecog`) using `mne.pick_types`, preventing runtime failures from inconsistent hospital naming schemes. It leverages a Python Context Manager to lock/unlock OS file handles.
+- **`sliding_window.py`**: A Python Generator that ingests the `DataManager` stream and slices it into $O(1)$ memory chunks using configurable offsets. It eliminates end-of-file truncation by dynamically calculating duration limits.
 - **The Pipeline**: Together, the `DataManager` pulls metadata and passes it to the `SlidingWindowGenerator`, which invokes `get_window()` to stream isolated arrays from the disk *only* when the memory loop yields.
 
 ### Asynchronous GUI Integration (IPC)
 
-The backend runs on a separate process pool to ensure the UI never freezes. It quietly chunks data using `sliding_window.py`, runs deep learning inference, and yields lightweight JSON payloads back to the main thread in real-time.
+The backend runs on a separate process pool to ensure the UI never freezes. It chunks data using `sliding_window.py`, runs inference models, and yields lightweight JSON payloads back to the main thread.
 
 ## Testing Results
 
-The data ingestion pipeline has been subjected to comprehensive testing, edge-case validation, and memory profiling. 
+The data ingestion pipeline was tested for edge-case validation and memory profiling. 
 
-- **Unit Tests (100% Coverage)**: The modules pass `pytest` with **100% coverage** over the core modules. The dynamic assertions lock down zero-length windows, negative overlap parameters, out-of-bounds duration requests, and fractional end-of-file truncation rounding.
+- **Unit Tests (100% Coverage)**: The modules pass `pytest` with **100% coverage** over the core modules. The dynamic assertions lock down zero-length windows, negative overlap parameters, out-of-bounds duration requests, and end-of-file truncation.
 
 <details>
 <summary><strong>Expand to see Pytest output</strong></summary>
@@ -99,15 +99,15 @@ TOTAL                           66      0   100%
 ```
 </details>
 
-- **1.2GB Clinical Stress Test**: The pipeline executed a continuous MProf heartbeat trace over a 1.2GB `.edf` file, simulating chunks scaling up to 172 simultaneous data channels.
-- **RAM Resilience**: Memory usage proved entirely resilient. The RAM consumption idled strictly at a `~147 MB` baseline. During disk-read bursts, memory spiked but immediately compressed back down to exactly `147 MB` via aggressive garbage collection (`gc.collect()`), avoiding the risk of memory overflow regardless of recording length.
+- **1.2GB .edf Test**: The pipeline executed on a 1.2GB `.edf` file, generating chunks for 172 data channels.
+- **RAM Resilience**: The RAM consumption stabilized at `~147 MB`. During disk-read bursts, memory spiked but immediately compressed back down to exactly `147 MB` via aggressive garbage collection (`gc.collect()`), avoiding the risk of memory overflow regardless of recording length.
 
 ## 🔢 Deterministic Plugin Verification (Epileptogenicity Index)
 
-To ensure clinical plugins behave predictably before being ingested by deep learning models or the GUI, the pipeline demands mathematical strictness. The `EpileptogenicityIndex` plugin executes a 4-stage deterministic feature extraction (Spatial Referencing -> Spectral Power -> CUSUM -> Normalization).
+To ensure clinical plugins behave predictably before being ingested by inference models or the GUI, the pipeline enforces mathematical strictness. The `EpileptogenicityIndex` plugin executes a 4-stage deterministic feature extraction (Spatial Referencing -> Spectral Power -> CUSUM -> Normalization).
 
-- **Dynamic Edge-Cases Prevented**: The Pytest suite rigorously validates that ultra-short streaming array windows will dynamically down-scale SciPy Fast Fourier Transforms (`nperseg`) to prevent instant segfaults.
-- **Serialization Isolation**: The test mathematically guarantees the returned feature metrics contain absolutely **zero** `numpy.ndarray` vectors, ensuring pure JSON synchronization when moving output back into the GUI thread.
+- **Dynamic Edge-Cases Prevented**: The Pytest suite rigorously validates that short streaming array windows will dynamically down-scale SciPy FFT (`nperseg`) to prevent instant segfaults.
+- **Serialization Isolation**: The test proves the returned feature metrics contain absolutely **zero** `numpy.ndarray` vectors, ensuring pure JSON synchronization when moving output back into the GUI thread.
 
 <details>
 <summary><strong>Expand to see Pytest output</strong></summary>
@@ -123,7 +123,7 @@ tests/test_feature_extractors.py::test_epileptogenicity_index_extraction PASSED 
 
 ## AI Inference & Hardware Sandboxing Validation
 
-To guarantee system stability for deep learning configurations, I have prototyped a Pytest suite that tests the architectural boundaries of the plugin registry using mock neural networks, rather than just testing mathematical accuracy. The suite currently mathematically proves that:
+To guarantee prototype functionality, a Pytest suite was implemented that tests the plugin registry. The suite proves that:
 
 - **Hardware Sandboxing**: The `BasePyTorchModel` wrapper successfully disables the computational graph (`requires_grad == False`) during continuous execution, ensuring an $O(1)$ VRAM footprint.
 - **IPC Safety**: It enforces strict Type-checking on researcher plugins, guaranteeing that absolutely **zero** `torch.Tensor` objects leak into the JSON payload bound for the asynchronous UI thread.
@@ -155,9 +155,9 @@ TOTAL                                     43      6    86%
 
 ## 🚀 End-to-End Prototype Demonstration
 
-To definitively prove the architectural pipeline is fully realized, the backend was executed against a continuous 1.2GB clinical synthetic stress EDF file. 
+To prove the architectural pipeline is fully realized, the backend was executed against a continuous 1.2GB EDF file. 
 
-This script formally initializes the `DataManager`, unpacks the `SlidingWindowGenerator`, seamlessly passes the exact sample rates to the `EpileptogenicityIndex` plugin, and dynamically streams and processes high-frequency mathematical data within a pure $O(1)$ memory constraint.
+A script was implemented that initializes the `DataManager`, unpacks the `SlidingWindowGenerator`, passes the sample rates to the `EpileptogenicityIndex` feature extractor plugin, and dynamically streams and processes high-frequency data within a pure $O(1)$ memory constraint.
 
 <details>
 <summary><strong>Expand to see Pipeline Terminal Execution</strong></summary>
