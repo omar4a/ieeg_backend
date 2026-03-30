@@ -1,0 +1,11 @@
+============================= test session starts =============================
+platform win32 -- Python 3.14.0, pytest-9.0.2, pluggy-1.6.0 -- C:\Python314\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Omar\Work\GSoC_2026\ieeg_backend
+configfile: pyproject.toml
+plugins: anyio-4.12.1, cov-7.1.0
+collecting ... collected 1 item
+
+tests/test_feature_extractors.py::test_epileptogenicity_index_extraction PASSED [100%]
+
+============================== 1 passed in 5.21s ==============================

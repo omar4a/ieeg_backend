@@ -22,3 +22,22 @@ class BaseModel(ABC):
                             to be streamed back to the Main GUI Thread via IPC.
         """
         pass
+
+class BaseFeatureExtractor(ABC):
+    """
+    Contract for all deterministic mathematical feature extraction plugins.
+    Ensures that any signal processing pipeline yields standardized dictionaries 
+    parseable by both Models (like EEGSurvNet) and the GUI.
+    """
+    @abstractmethod
+    def extract(self, window_data: np.ndarray) -> Dict[str, Any]:
+        """
+        Extracts mathematical features from a sliding window array.
+
+        Args:
+            window_data: A (Channels x Samples) numpy array.
+
+        Returns:
+            Dict[str, Any]: A JSON-serializable dictionary with extracted feature arrays.
+        """
+        pass

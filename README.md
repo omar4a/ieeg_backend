@@ -1,7 +1,5 @@
 # iEEG Backend - INCF GSoC 2026
 
-![Coverage](https://img.shields.io/badge/Coverage-100%25-brightgreen.svg) ![Python](https://img.shields.io/badge/Python-3.10+-blue.svg) ![PyTorch](https://img.shields.io/badge/PyTorch-Integrated-ee4c2c.svg)
-
 Welcome! This repository houses the core backend for the iEEG management suite. 
 
 ## 📂 Project Architecture
@@ -104,6 +102,25 @@ TOTAL                           66      0   100%
 - **1.2GB Clinical Stress Test**: The pipeline executed a continuous MProf heartbeat trace over a 1.2GB `.edf` file, simulating chunks scaling up to 172 simultaneous data channels.
 - **RAM Resilience**: Memory usage proved entirely resilient. The RAM consumption idled strictly at a `~147 MB` baseline. During disk-read bursts, memory spiked but immediately compressed back down to exactly `147 MB` via aggressive garbage collection (`gc.collect()`), avoiding the risk of memory overflow regardless of recording length.
 
+## 🔢 Deterministic Plugin Verification (Epileptogenicity Index)
+
+To ensure clinical plugins behave predictably before being ingested by deep learning models or the GUI, the pipeline demands mathematical strictness. The `EpileptogenicityIndex` plugin executes a 4-stage deterministic feature extraction (Spatial Referencing -> Spectral Power -> CUSUM -> Normalization).
+
+- **Dynamic Edge-Cases Prevented**: The Pytest suite rigorously validates that ultra-short streaming array windows will dynamically down-scale SciPy Fast Fourier Transforms (`nperseg`) to prevent instant segfaults.
+- **Serialization Isolation**: The test mathematically guarantees the returned feature metrics contain absolutely **zero** `numpy.ndarray` vectors, ensuring pure JSON synchronization when moving output back into the GUI thread.
+
+<details>
+<summary><strong>Expand to see Pytest output</strong></summary>
+
+```text
+============================= test session starts =============================
+
+tests/test_feature_extractors.py::test_epileptogenicity_index_extraction PASSED [100%]
+
+============================== 1 passed in 5.21s ==============================
+```
+</details>
+
 ## AI Inference & Hardware Sandboxing Validation
 
 To guarantee system stability for deep learning configurations, I have prototyped a Pytest suite that tests the architectural boundaries of the plugin registry using mock neural networks, rather than just testing mathematical accuracy. The suite currently mathematically proves that:
@@ -135,3 +152,35 @@ TOTAL                                     43      6    86%
 </details>
 
 > **Note on Coverage**: 86% as the 5 omitted lines represent incompatible hardware branches (e.g. Apple Silicon `mps` or `cuda` fallbacks) skipped during local execution, alongside structural `NotImplementedError` stubs enforced by the `BaseModel` abstract interface.
+
+## 🚀 End-to-End Prototype Demonstration
+
+To definitively prove the architectural pipeline is fully realized, the backend was executed against a continuous 1.2GB clinical synthetic stress EDF file. 
+
+This script formally initializes the `DataManager`, unpacks the `SlidingWindowGenerator`, seamlessly passes the exact sample rates to the `EpileptogenicityIndex` plugin, and dynamically streams and processes high-frequency mathematical data within a pure $O(1)$ memory constraint.
+
+<details>
+<summary><strong>Expand to see Pipeline Terminal Execution</strong></summary>
+
+```text
+21:19:42 - ============================================================
+21:19:42 - 🚀 INITIALIZING GSoC END-TO-END PIPELINE DEMONSTRATION
+21:19:42 - ============================================================
+21:19:42 - Opening file: C:\Omar\Work\GSoC_2026\iEEG\synthetic_stress_iEEG.edf
+21:19:43 - DataManager Ready: 172 channels, 1024.0Hz, 3658.00s total duration.
+21:19:43 - 📂 [Ingestion Matrix] Read Headers: 172 Channels @ 1024.0Hz
+21:19:43 - 🛡️ [Memory Guardian] Initial RAM Footprint: 144.9 MB
+21:19:43 - 🔌 [Registry Integration] Booting `EpileptogenicityIndex` Plugin...
+21:19:43 - ------------------------------------------------------------
+21:19:43 - ⏳ STREAMING DATA (Window: 10.0s). Executing AI Math Pipeline on first 5 chunks...
+21:19:43 - ------------------------------------------------------------
+21:19:43 - Starting sliding window: 10.0s size, 0.0s overlap.
+21:19:43 - ⚡ Chunk 01 | Compute:  159.0ms | Out: 171 JSON nodes (Max EI: 0.000) | RAM: 158.4 MB
+21:19:43 - ⚡ Chunk 02 | Compute:  158.7ms | Out: 171 JSON nodes (Max EI: 0.000) | RAM: 158.4 MB
+21:19:44 - ⚡ Chunk 03 | Compute:  157.9ms | Out: 171 JSON nodes (Max EI: 0.000) | RAM: 158.4 MB
+21:19:44 - ⚡ Chunk 04 | Compute:  158.2ms | Out: 171 JSON nodes (Max EI: 0.000) | RAM: 158.4 MB
+21:19:44 - ⚡ Chunk 05 | Compute:  156.8ms | Out: 171 JSON nodes (Max EI: 0.000) | RAM: 158.4 MB
+21:19:44 - ============================================================
+21:19:44 - ✅ PIPELINE COMPLETED: Safely released OS File Handles.
+```
+</details>
