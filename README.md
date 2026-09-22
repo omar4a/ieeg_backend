@@ -1,6 +1,16 @@
-# iEEG Backend - INCF GSoC 2026
+# iEEG Backend: Plugin-Based Pipeline for Clinical Intracranial EEG
 
-Welcome! This repository houses the core backend for the iEEG management suite. 
+A Python backend that streams **multi-gigabyte intracranial EEG (iEEG) recordings in constant memory**. It runs drop-in feature and model plugins over sliding windows and returns JSON-safe results to a GUI.
+
+> **Status:** Working prototype built for my INCF Google Summer of Code 2026 proposal (Project 21). The proposal was not selected, and the reviewer called it very competitive. The data engine, plugin contracts, PyTorch adapter and one clinical feature plugin are implemented and tested. The async workers, GUI bridge and benchmarking suite are designed but **not yet implemented**. They're marked *(planned)* below.
+
+![architecture](docs/img/arch_diagram.png)
+
+**Highlights**
+- Streamed a **1.2 GB, 172-channel EDF in ~150 MB of RAM** (lazy MNE reads + a generator-based sliding window).
+- **100% test coverage** on the data engine, with pytest edge cases for zero-length windows, negative overlap, out-of-bounds reads and end-of-file truncation.
+- **Open/closed plugin architecture:** researchers drop in preprocessors, features or models that implement ABC contracts, and the contract tests enforce compliance.
+- **IPC-safe outputs:** tests guarantee that no `numpy.ndarray` or `torch.Tensor` objects leak into the JSON sent to the UI thread.
 
 ## 📂 Project Architecture
 
@@ -15,29 +25,28 @@ ieeg_backend/
 │
 ├── src/                        # Immutable source code (Python package root)
 │   ├── core/                   # Core pipeline engine (Closed for modification)
-│   │   ├── __init__.py
 │   │   ├── interfaces.py       # Pure ABC contracts (BasePreProcessor, BaseModel)
 │   │   ├── base_models/        # Framework adapters (PyTorch/Sklearn wrappers)
 │   │   │   ├── base_pytorch.py
-│   │   │   └── base_classical.py
+│   │   │   └── base_classical.py   # (planned)
 │   │   ├── data_manager.py     # MNE lazy-loading and BIDS parsing
 │   │   ├── sliding_window.py   # Continuous data chunking generator
-│   │   ├── dynamic_loader.py   # Importlib scanner for the plugins directory
-│   │   └── async_workers.py    # Multithreading logic for non-blocking execution
+│   │   ├── dynamic_loader.py   # (planned) importlib scanner for plugins/
+│   │   └── async_workers.py    # (planned) process pool for non-blocking execution
 │   │
-│   ├── bridge/                 # GUI Integration Layer (IPC)
+│   ├── bridge/                 # (planned) GUI integration layer (IPC)
 │   │   ├── __init__.py
 │   │   ├── event_handlers.py   # Receives execution triggers from the frontend
 │   │   └── schemas.py          # Pydantic models enforcing JSON payload structure
 │   │
-│   └── benchmarking/           # Clinical Evaluation Suite
+│   └── benchmarking/           # (planned) clinical evaluation suite
 │       ├── __init__.py
 │       ├── cross_validator.py  # Grouped patient-level cross-validation
 │       └── metric_calculator.py# Metrics robust to class imbalance (PR-AUC, F1)
 │
 ├── plugins/                    # Dynamic Registry (Open for extension)
 │   ├── preprocessors/          # Drop-in cleaning algorithms (Notch, Bipolar)
-│   ├── features/               # Drop-in extraction math (HFOs, DWT)
+│   ├── features/               # epileptogenicity_index.py (implemented); HFO, DWT planned
 │   └── models/                 # Drop-in inference scripts (EEGSurvNet, XGBoost)
 │
 ├── workspace/                  # Local clinical data outputs (Git-ignored)
@@ -49,10 +58,12 @@ ieeg_backend/
 │
 ├── tests/                      # Pytest Suite
 │   ├── test_sliding_window.py
-│   ├── test_dynamic_loader.py
+│   ├── test_data_manager.py
+│   ├── test_feature_extractors.py
+│   ├── test_memory_profiling.py
 │   └── test_contracts.py       # Enforces plugin compliance with ABC rules
 │
-└── main.py                     # Entry point that initializes the engine and UI bridge
+└── demo_full_pipeline.py       # End-to-end demo: DataManager → windows → EI plugin
 ```
 
 ## Current Implementation Status
@@ -63,9 +74,9 @@ ieeg_backend/
 - **`sliding_window.py`**: A Python Generator that ingests the `DataManager` stream and slices it into $O(1)$ memory chunks using configurable offsets. It eliminates end-of-file truncation by dynamically calculating duration limits.
 - **The Pipeline**: Together, the `DataManager` pulls metadata and passes it to the `SlidingWindowGenerator`, which invokes `get_window()` to stream isolated arrays from the disk *only* when the memory loop yields.
 
-### Asynchronous GUI Integration (IPC)
+### Asynchronous GUI integration (IPC): planned
 
-The backend runs on a separate process pool to ensure the UI never freezes. It chunks data using `sliding_window.py`, runs inference models, and yields lightweight JSON payloads back to the main thread.
+The design runs inference in a separate process pool so the UI never freezes: it chunks data with `sliding_window.py`, runs the plugins, and yields lightweight JSON payloads back to the main thread. The JSON-safety guarantees are already enforced by the tests; the process pool itself is not yet built.
 
 ## Testing Results
 
@@ -184,3 +195,14 @@ A script was implemented that initializes the `DataManager`, unpacks the `Slidin
 21:19:44 - ✅ PIPELINE COMPLETED: Safely released OS File Handles.
 ```
 </details>
+![demo run](docs/img/demo.png)
+
+## Run it
+```bash
+pip install -r requirements.txt
+pytest --cov=src                      # unit + contract tests
+python demo_full_pipeline.py          # needs an .edf file; path set at the top of the script
+```
+
+## Tech
+`Python` · `MNE-Python` · `NumPy/SciPy` · `PyTorch` · `pytest` + `pytest-cov` · ABC/adapter patterns · generators
